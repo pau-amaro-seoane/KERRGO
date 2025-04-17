@@ -23,9 +23,6 @@
 # Dependencies:
 # - Julia 1.6+ (base installation only)
 #
-# Precision:
-# Default tol=1e-8 controls fractional convergence of the analytic solution.
-#
 # Command-line Examples:
 # $ julia disco.jl 0.9 prograde 1e-6
 # Equatorial ISCO Results (a=0.90, prograde):
@@ -35,9 +32,8 @@
 # For 1e6 Msun BH: 1.111e-07 pc
 #
 # $ julia disco.jl 0.5 retrograde
-# (uses default tol=1e-8)
 #
-# $ julia disco.jl -0.2 prograde 1e-4
+# $ julia disco.jl -0.2 prograde
 # (for counter-rotating black holes)
 #
 # Author: Pau Amaro Seoane, amaro@riseup.net
@@ -50,57 +46,59 @@
 
 using Printf
 
-# Physical constants (SI units)
+# Physical constants (SI units, CODATA 2018 values)
 const G = 6.67430e-11       # m^3 kg^-1 s^-2
 const c = 2.99792458e8      # m/s
 const Msun = 1.98847e30     # kg
 const pc = 3.08567758e16    # m
+const AU = 1.495978707e11   # m
 
 function compute_isco(a::Float64; prograde::Bool=true)
-    # Implementation of Bardeen's formula
+    # Validate spin parameter
+    abs(a) >= 1.0 && error("Spin parameter must satisfy -1 < a < 1")
+
+    # Bardeen's exact solution (1972)
     z1 = 1 + (1 - a^2)^(1/3) * ((1 + a)^(1/3) + (1 - a)^(1/3))
     z2 = sqrt(3*a^2 + z1^2)
-    if prograde
-        3 + z2 - sqrt((3 - z1)*(3 + z1 + 2*z2))
-    else
-        3 + z2 + sqrt((3 - z1)*(3 + z1 + 2*z2))
-    end
+    prograde ? 3 + z2 - sqrt((3 - z1)*(3 + z1 + 2*z2)) :
+              3 + z2 + sqrt((3 - z1)*(3 + z1 + 2*z2))
 end
 
-function convert_units(r_g, mass)
-    rg_m = r_g * G * mass * Msun / c^2
+function convert_units(r_g, mass_sun)
+    # Convert geometric units to physical units
+    meters = r_g * G * mass_sun * Msun / c^2
     Dict(
-        :geometric => r_g,
-        :pc => rg_m / pc,
-        :km => rg_m / 1000,
-        :au => rg_m / 1.496e11
+        :pc => meters / pc,
+        :au => meters / AU,
+        :km => meters / 1000,
+        :geometric => r_g  # Return input for reference
     )
 end
 
 function main()
     if length(ARGS) < 1
-        println("Usage: julia disco.jl spin [prograde|retrograde] [tol]")
+        println("Usage: julia disco.jl spin [prograde|retrograde]")
         println("Examples:")
-        println("  julia disco.jl 0.9 prograde 1e-6")
+        println("  julia disco.jl 0.9 prograde")
         println("  julia disco.jl 0.5 retrograde")
         return
     end
 
     a = parse(Float64, ARGS[1])
     prograde = length(ARGS) > 1 ? ARGS[2] == "prograde" : true
-    tol = length(ARGS) > 2 ? parse(Float64, ARGS[3]) : 1e-8
 
     r_isco = compute_isco(a, prograde=prograde)
     conv = convert_units(r_isco, 1.0)  # 1 Msun conversion factor
 
     println("\nEquatorial ISCO Results (a=$a, $(prograde ? "prograde" : "retrograde")):")
-    @printf("ISCO radius: %.4f gravitational radii\n", r_isco)
-    @printf("Conversion factor: 1 gravitational radius = %.3e pc/Msun\n", conv[:pc])
-    
-    # Example masses
+    @printf("ISCO radius: %.12f gravitational radii\n", r_isco)
+    @printf("Conversion factor: 1 gravitational radius = %.12e pc/Msun\n", conv[:pc])
+
+    # Display for standard mass scales
     for M in [10.0, 1e6]
         m_conv = convert_units(r_isco, M)
-        @printf("For %.0e Msun BH: %.3e pc\n", M, m_conv[:pc])
+        @printf("For %.0e Msun BH: %.12e pc (%.3f AU)\n",
+               M, m_conv[:pc], m_conv[:au])
     end
 end
 

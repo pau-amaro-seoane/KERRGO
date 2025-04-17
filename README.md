@@ -71,11 +71,6 @@ convert_units(r_isco, 1e6)  # For 1 million solar mass BH
 $ julia disco.jl 0.9 prograde
 ```
 
-### High-precision mode
-```bash
-$ julia disco.jl 0.5 retrograde 1e-12
-```
-
 ### Example output:
 ```
 Equatorial ISCO Results (a=0.90, prograde):
@@ -108,16 +103,6 @@ Returns Dict with:
 - :km - Kilometers
 - :au - Astronomical Units
 ```
-
-## Precision Control
-
-The `tol` parameter controls solution accuracy:
-
-| Tolerance | Relative Error | Use Case |
-|-----------|----------------|----------|
-| 1e-4      | ~0.01%         | Quick estimates |
-| 1e-8      | ~1e-6%         | Default precision |
-| 1e-12     | ~1e-10%        | High-precision needs |
 
 ## Contributing
 
